@@ -1,25 +1,39 @@
-const db = require("../lib/db");
+const supabase = require("../config/supabase");
 
-// Fetch all packages dynamically
+// --------------------
+// FETCH ALL PACKAGES
+// --------------------
 async function findAllPackages() {
-  const { rows } = await db.query(`SELECT id, name FROM "package"`);
-  return rows;
+  const { data, error } = await supabase
+    .from("package")
+    .select("id, name");
+
+  if (error) throw error;
+
+  return data;
 }
 
-// Fetch overlapping bookings for a package
-async function findOverlappingBookings(packageId, startDate, endDate) {
-const { rows } = await db.query(
-  `
-  SELECT id, payment_status
-  FROM user_booking
-  WHERE package_id = $1
-    AND start_date <= $2
-    AND end_date >= $3
-  `,
-  [packageId, endDate, startDate]
-);
+// --------------------
+// FIND OVERLAPPING BOOKINGS
+// --------------------
+async function findOverlappingBookings(
+  packageId,
+  startDate,
+  endDate
+) {
+  const { data, error } = await supabase
+    .from("user_booking")
+    .select("id, payment_status")
+    .eq("package_id", packageId)
+    .lte("start_date", endDate)
+    .gte("end_date", startDate);
 
-return rows;
+  if (error) throw error;
+
+  return data;
 }
 
-module.exports = { findAllPackages, findOverlappingBookings };
+module.exports = {
+  findAllPackages,
+  findOverlappingBookings,
+};

@@ -1,36 +1,62 @@
-// index.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const supabase = require("./config/supabase");
+
 const app = express();
 const port = process.env.PORT || 5000;
 
+// middleware
 app.use(cors());
+
+// IMPORTANT for Billplz callback
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-require("dotenv").config();   // ✅ Loads .env variables
-const packagesRouter = require("./routes/packages");
-app.get("/api/packages", (req, res) => {
-  const packages = [
-    { id: 1, name: "Pakej A", enabled: true },
-    { id: 2, name: "Pakej B", enabled: true },
-    { id: 3, name: "Pakej C", enabled: false }
-  ];
-
-  res.json(packages);
-});
-
-const addOnRouter = require("./routes/addOn");
-app.use("/api/addon", addOnRouter);
-
-
-// TEST API
+// --------------------
+// ROOT
+// --------------------
 app.get("/", (req, res) => {
   res.send("Node.js backend running!");
 });
 
+// --------------------
+// TEST SUPABASE CONNECTION
+// --------------------
+app.get("/test-db", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("package")
+      .select("*");
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+// --------------------
+// ROUTES
+// --------------------
+app.use("/api/packages", require("./routes/packages"));
+app.use("/api/addon", require("./routes/addOn"));
+app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/users", require("./routes/user.routes"));
+app.use("/api/bookings", require("./routes/booking"));
+app.use("/api/moments", require("./routes/moments"));
+
+// --------------------
 // START SERVER
+// --------------------
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });

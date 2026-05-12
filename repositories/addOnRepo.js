@@ -1,14 +1,15 @@
-const db = require("../lib/db"); // your pg Pool
+const supabase = require("../config/supabase");
 
-// Get all active add-ons (status = 1)
+// Get all active add-ons
 async function getAllActiveAddOns() {
-  const { rows } = await db.query(
-    `SELECT id, name, price, image_url, avail, status
-     FROM add_on_item
-     WHERE status = $1`,
-    [1]
-  );
-  return rows;
+  const { data, error } = await supabase
+    .from("add_on_item")
+    .select("id, name, price, image_url, avail, status")
+    .eq("status", 1);
+
+  if (error) throw error;
+
+  return data;
 }
 
 module.exports = {
