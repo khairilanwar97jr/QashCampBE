@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('../config');
 
-async function createBill({ name, email, amount, bookingId }) {
+async function createBill({ name, email, amount, bookingId, bookingRef }) {
   try {
 const response = await axios.post(
   config.apiUrl,

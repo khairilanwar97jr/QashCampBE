@@ -33,7 +33,23 @@ async function findOverlappingBookings(
   return data;
 }
 
+async function findPackageById(id) {
+
+  const { data, error } = await supabase
+    .from("package")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 module.exports = {
   findAllPackages,
   findOverlappingBookings,
+  findPackageById,
 };

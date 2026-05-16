@@ -4,7 +4,7 @@ const PAYMENT_STATUS = require("../constants/paymentStatus");
 // --------------------
 // CREATE BOOKING + ADDONS
 // --------------------
-async function createBookingWithAddons(bookingData) {
+async function createBookingWithAddons(bookingData, bookingRef, paymentStatus = PAYMENT_STATUS.UNPAID) {
   const {
     firstName,
     lastName,
@@ -23,11 +23,27 @@ async function createBookingWithAddons(bookingData) {
     addOnIds = [],
   } = bookingData;
 
-  // 1️⃣ Create booking
+const { data: pkg, error: pkgError } = await supabase
+  .from("package")
+  .select("price")
+  .eq("id", packageId)
+  .single();
+
+if (pkgError) throw pkgError;
+
+if (!pkg) {
+  throw new Error("Package not found");
+}
+
+console.log("PACKAGE PRICE:", pkg.price);
+
+  // 1️⃣ Insert booking
   const { data: booking, error: bookingError } = await supabase
     .from("user_booking")
     .insert([
       {
+        booking_ref: bookingRef,
+
         first_name: firstName,
         last_name: lastName,
         email_addr: emailAddr,
@@ -36,29 +52,39 @@ async function createBookingWithAddons(bookingData) {
         start_date: startDate,
         end_date: endDate,
         user_id: userId || null,
-        status: 1,
-        payment_status: PAYMENT_STATUS.PENDING,
+
+        status: 1, // active row
+
+        payment_status: paymentStatus,
+        booking_type: bookingData.type,
+        package_price: pkg.price,
         address1: address1 || null,
         address2: address2 || null,
         address3: address3 || null,
         phone_no: phoneNo || null,
         camp_place: campPlace || null,
         no_id: noId || null,
+
+        // ❌ DO NOT add created_at here
+        // DB handles it automatically
       },
     ])
     .select(`
       id,
+      booking_ref,
+      booking_type,
       first_name,
       last_name,
       email_addr,
       total,
-      package_id
+      payment_status,
+      createddate
     `)
     .single();
 
   if (bookingError) throw bookingError;
 
-  // 2️⃣ Insert add-ons
+  // 2️⃣ Insert addons
   if (addOnIds.length > 0) {
     const addonRows = addOnIds.map((addOnId) => ({
       booking_id: booking.id,
@@ -81,11 +107,18 @@ async function createBookingWithAddons(bookingData) {
 // --------------------
 // UPDATE PAYMENT STATUS
 // --------------------
-async function updatePaymentStatus(bookingId, paymentStatus) {
+async function updatePaymentAndFinance(
+  bookingId,
+  paymentStatus,
+  totalPaid,
+  netAmount
+) {
   const { error } = await supabase
     .from("user_booking")
     .update({
       payment_status: paymentStatus,
+      total_paid: totalPaid,
+      net_amount: netAmount
     })
     .eq("id", bookingId);
 
@@ -145,23 +178,143 @@ async function getBookingById(id) {
 }
 
 async function getLatestBookings() {
+
   const { data, error } = await supabase
     .from("user_booking")
-    .select("*")
-    .eq("payment_status", "PAID")   // optional but recommended
+    .select(`
+      *,
+      package (
+        id,
+        name
+      )
+    `)
+    .in("payment_status", ["PAID", "DEPOSIT_PAID"])
     .order("id", { ascending: false })
     .limit(5);
 
   if (error) throw error;
+
+  return data;
+}
+
+//getbookingplzid
+async function getBookingByBillplzId(billplzId) {
+
+  const { data, error } = await supabase
+    .from("user_booking")
+    .select("*")
+    .eq("billplz_id", billplzId)
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
+async function updateFinancialInit(id, data) {
+  return supabase
+    .from("user_booking")
+    .update(data)
+    .eq("id", id);
+}
+
+async function searchBooking({ bookingRef, phoneNo, emailAddr }) {
+
+  let query = supabase
+    .from("user_booking")
+    .select("*");
+
+  if (bookingRef) {
+    query = query.eq("booking_ref", bookingRef);
+  }
+
+  else if (phoneNo) {
+    query = query.eq("phone_no", phoneNo);
+  }
+
+  else if (emailAddr) {
+    query = query.eq("email_addr", emailAddr);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  return data;
+}
+
+async function getAddonTotal(addOnIds) {
+
+  const { data, error } = await supabase
+    .from("add_on_item")
+    .select("price")
+    .in("id", addOnIds);
+
+  if (error) throw error;
+
+  return data.reduce((sum, item) => sum + item.price, 0);
+}
+
+async function getBookingById(id) {
+
+  const { data, error } = await supabase
+    .from("user_booking")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
+
+async function updateBillplzId(id, billplzId) {
+
+  const { error } = await supabase
+    .from("user_booking")
+    .update({
+      billplz_id: billplzId,
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+//get booking ref 
+async function getBookingByRef(bookingRef) {
+
+  const { data, error } = await supabase
+    .from("user_booking")
+    .select(`
+      *,
+      package (
+        id,
+        name,
+        price
+      )
+    `)
+    .eq("booking_ref", bookingRef)
+    .single();
+
+  if (error && error.code === "PGRST116") {
+  return null; // treat as not found
+}
+
   return data;
 }
 
 module.exports = {
   createBookingWithAddons,
-  updatePaymentStatus,
+  updatePaymentAndFinance,
   updateBillplzId,
   updatePaymentStatusByBillplzId,
   getBookingById,
   getLatestBookings,
+  getBookingByBillplzId,
+  updateFinancialInit,
+  searchBooking,
+  getAddonTotal,
+  getBookingByRef,
   
 };

@@ -1,10 +1,22 @@
-const { findAllPackages, findOverlappingBookings } = require("../repositories/packageRepo");
+const PAYMENT_STATUS = require("../constants/paymentStatus");
+const {
+  findAllPackages,
+  findOverlappingBookings,
+  findPackageById
+} = require("../repositories/packageRepo");
 
 // Check a single package
 async function isAvailable(packageId, startDate, endDate) {
-  const bookings = await findOverlappingBookings(packageId, startDate, endDate);
-  // Only PAID bookings block availability
-  return !bookings.some(b => b.payment_status === 1);
+  const bookings = await findOverlappingBookings(
+    packageId,
+    startDate,
+    endDate
+  );
+
+  return !bookings.some(b =>
+    [PAYMENT_STATUS.PAID, PAYMENT_STATUS.DEPOSIT_PAID]
+      .includes(b.payment_status)
+  );
 }
 
 // Check all packages dynamically
@@ -20,4 +32,19 @@ async function getAllPackagesAvailability(startDate, endDate) {
   return result;
 }
 
-module.exports = { getAllPackagesAvailability };
+// GET PACKAGE BY ID
+async function getPackageById(id) {
+
+  const pkg = await findPackageById(id);
+
+  if (!pkg) {
+    throw new Error("Package not found");
+  }
+
+  return pkg;
+}
+
+
+module.exports = {   getAllPackagesAvailability,
+  getPackageById,
+  isAvailable };

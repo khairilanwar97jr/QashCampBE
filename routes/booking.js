@@ -1,21 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const bookingService = require('../services/bookingService');
+const bookingSchema = require("../schemas/bookingSchema");
 
 // Create booking + generate payment link
-router.post('/book', async (req, res) => {
+router.post("/book", async (req, res) => {
   try {
-    const bookingData = req.body; // expect all required fields
+    // 🔥 VALIDATE HERE
+    const bookingData = bookingSchema.parse(req.body);
+
     const result = await bookingService.createBookingAndPayment(bookingData);
 
     res.json({
       success: true,
+      bookingRef: result.booking.booking_ref,
       paymentUrl: result.paymentUrl,
       bookingId: result.booking.id
     });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Failed to create booking.' });
+
+    res.status(400).json({
+      success: false,
+      message: err.message
+    });
   }
 });
 
@@ -23,6 +32,7 @@ router.post('/billplz-callback', async (req, res) => {
   const billplzId = req.body?.id;
   let bookingId = req.body?.reference_1;
   const paid = req.body?.paid;
+  const amount = req.body?.amount; // 👈 ADD THIS
 
   console.log("📥 CALLBACK:", req.body);
 
@@ -38,7 +48,8 @@ router.post('/billplz-callback', async (req, res) => {
   bookingService.handleBillplzCallback({
     billplzId,
     bookingId,
-    paid
+    paid,
+      amount   // 👈 ADD THIS
   }).catch(err => {
     console.error("❌ Callback error:", err.message);
   });
@@ -63,6 +74,7 @@ router.get("/booking/:id/status", async (req, res) => {
       bookingId: booking.id,
       paymentStatus: booking.payment_status,
       name: booking.first_name,
+      bookingRef: booking.booking_ref,
     });
 
   } catch (err) {
@@ -84,6 +96,78 @@ router.get("/latest", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+router.get("/search", async (req, res) => {
+  try {
+
+    const { phoneNo, emailAddr, bookingRef } = req.query;
+
+    console.log("SEARCH INPUT:", req.query);
+
+    const data = await bookingService.searchBooking({
+      phoneNo,
+      emailAddr,
+      bookingRef,   // 👈 ADD THIS
+    });
+
+    res.json({
+      success: true,
+      data,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+router.post("/pay-final", async (req, res) => {
+  try {
+    const result = await bookingService.createFinalPayment(req.body);
+
+res.json({
+  success: true,
+  paymentUrl: result.paymentUrl,
+  amount: result.amount,
+  bookingId: result.bookingId,
+});
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+router.get("/getBooking", async (req, res) => {
+  const { ref } = req.query;
+
+  if (!ref) {
+    return res.status(400).json({
+      success: false,
+      message: "Booking reference is required",
+    });
+  }
+
+  const data = await bookingService.getBookingByRef(ref);
+
+  if (!data) {
+    return res.status(404).json({
+      success: false,
+      message: "Booking not found",
+    });
+  }
+
+  res.json({ success: true, data });
+});
+
+
+
 
 
 module.exports = router;

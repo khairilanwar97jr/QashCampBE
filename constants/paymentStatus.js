@@ -1,5 +1,6 @@
 const PAYMENT_STATUS = {
-  PENDING: "PENDING",
+  UNPAID: "UNPAID",           // not paid yet (walk-in created or online booking created)
+  DEPOSIT_PAID: "DEPOSIT_PAID",
   PAID: "PAID",
   FAILED: "FAILED",
   EXPIRED: "EXPIRED",
