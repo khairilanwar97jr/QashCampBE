@@ -3,12 +3,9 @@ const router = express.Router();
 const service = require("../services/momentsService");
 const multer = require("multer");
 
-const multer = require("multer");
-
 const upload = multer({
   storage: multer.memoryStorage()
 });
-
 
 // Public timeline
 router.get("/", async (req, res) => {
@@ -30,11 +27,11 @@ router.post("/", upload.single("image"), async (req, res) => {
       return res.status(400).json({ error: "No image uploaded" });
     }
 
-const moment = await service.submitMoment(
-  caption,
-  req.file.buffer,
-  userId
-);
+    const moment = await service.submitMoment(
+      caption,
+      req.file.buffer,
+      userId
+    );
 
     res.status(201).json(moment);
   } catch (err) {
