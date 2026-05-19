@@ -99,7 +99,7 @@ router.get("/latest", async (req, res) => {
   }
 });
 
-// Fetch heavy base64 snapshot on demand
+// Fetch heavy base64 snapshots on demand
 router.get("/:bookingRef/attachment", async (req, res) => {
   try {
     const { bookingRef } = req.params;
@@ -114,7 +114,9 @@ router.get("/:bookingRef/attachment", async (req, res) => {
 
     res.json({
       success: true,
-      summarySnapshot: attachment.summary_snapshot
+      // ◄ Returns both snapshots side-by-side cleanly
+      summarySnapshot: attachment.summary_snapshot,
+      summarySnapshotFinal: attachment.summary_snapshot_final 
     });
 
   } catch (err) {

@@ -276,7 +276,8 @@ async function searchBooking({ bookingRef, phoneNo, emailAddr }) {
 async function createFinalPayment({
   bookingId,
   addOnIds = [],
-  extraNightCount = 0
+  extraNightCount = 0,
+  summarySnapshot // ◄ Added to capture frontend base64 payload
 }) {
 
   const FPX_FEE = 1.25;
@@ -287,6 +288,14 @@ async function createFinalPayment({
 
   if (booking.payment_status === "PAID") {
     throw new Error("Already fully paid");
+  }
+
+  // ==================================================
+  // 📸 SAVE THE FINAL PAYMENT SNAPSHOT
+  // ==================================================
+  if (summarySnapshot) {
+    // Updates only the new column on the existing unique row
+    await bookingRepo.updateFinalPaymentSnapshot(booking.booking_ref, summarySnapshot);
   }
 
   // ==================================================

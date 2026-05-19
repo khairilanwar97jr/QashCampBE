@@ -201,17 +201,16 @@ async function getLatestBookings() {
 }
 
 // ----------------------------------------------------
-// FETCH IMAGE SNAPSHOT STRING ONLY
+// FETCH IMAGE SNAPSHOT STRINGS ONLY
 // ----------------------------------------------------
 async function getAttachmentByRef(bookingRef) {
   const { data, error } = await supabase
     .from("booking_attch")
-    .select("summary_snapshot")
+    .select("summary_snapshot, summary_snapshot_final") // ◄ Added your new column here
     .eq("booking_ref", bookingRef)
-    .single(); // We only expect exactly 1 row
+    .single(); 
 
   if (error) {
-    // If no attachment exists yet, return null instead of crashing the app
     if (error.code === "PGRST116") return null; 
     throw error;
   }
@@ -378,6 +377,26 @@ async function updateBookingAttachmentId(bookingId, attachmentId) {
 
   if (error) throw error;
 }
+
+// =================================================================
+// UPDATE FINAL PAYMENT SNAPSHOT (Keeps initial snapshot untouched)
+// =================================================================
+async function updateFinalPaymentSnapshot(bookingRef, finalSnapshotData) {
+  const { data, error } = await supabase
+    .from("booking_attch")
+    .update({ 
+      summary_snapshot_final: finalSnapshotData 
+    })
+    .eq("booking_ref", bookingRef)
+    .select();
+
+  if (error) {
+    throw error;
+  }
+
+  return data[0];
+}
+
 module.exports = {
   createBookingWithAddons,
   updatePaymentAndFinance,
@@ -394,4 +413,5 @@ module.exports = {
   saveBookingAttachment,
   getAttachmentByRef,
   updateBookingAttachmentId,
+  updateFinalPaymentSnapshot,
 };

@@ -13,7 +13,7 @@ const config = {
         // backendUrl: 'https://supernormally-martial-monica.ngrok-free.dev',
         // frontendUrl: 'http://localhost:5173'
 
-                // 🔥 NGROK (uncomment when testing webhook locally)
+        // 🔥 NGROK (uncomment when testing webhook locally)
         backendUrl: 'https://qash-camp-be.vercel.app',
         frontendUrl: 'https://www.qashcamp.com'
         },
