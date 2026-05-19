@@ -3,6 +3,12 @@ const config = require('../config');
 
 async function createBill({ name, email, amount, bookingId, bookingRef, packageId }) {
   try {
+
+console.log("MODE:", MODE);
+console.log("FRONTEND URL:", config.frontendUrl);
+console.log("BACKEND URL:", config.backendUrl);
+
+
     const response = await axios.post(
       config.apiUrl,
       {
@@ -26,6 +32,8 @@ async function createBill({ name, email, amount, bookingId, bookingRef, packageI
         // ✔ ADD THIS
         reference_2_label: 'Package ID',
         reference_2: packageId
+
+        
       },
       { auth: { username: config.apiKey, password: '' } }
     );
