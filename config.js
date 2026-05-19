@@ -1,4 +1,4 @@
-const MODE = 'live'; // change to 'live' for production
+const MODE = 'sandbox'; // change to 'live' for production
 
 const config = {
     sandbox: {
