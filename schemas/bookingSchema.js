@@ -25,7 +25,12 @@ const bookingSchema = z.object({
 
   campPlace: z.string().optional(),
 
-  total: z.number().min(0)
+  total: z.number().min(0),
+
+  total_with_online_charge: z.number().min(0).optional(),
+
+  // 👈 ADD THIS LINE TO VALIDATE THE BASE64 STRING
+  summarySnapshot: z.string().optional()
 });
 
 module.exports = bookingSchema;

@@ -31,6 +31,7 @@ router.post("/book", async (req, res) => {
 router.post('/billplz-callback', async (req, res) => {
   const billplzId = req.body?.id;
   let bookingId = req.body?.reference_1;
+  let packageId = req.body?.reference_2;
   const paid = req.body?.paid;
   const amount = req.body?.amount; // 👈 ADD THIS
 
@@ -48,6 +49,7 @@ router.post('/billplz-callback', async (req, res) => {
   bookingService.handleBillplzCallback({
     billplzId,
     bookingId,
+    packageId,  // 👈 ADD THIS
     paid,
       amount   // 👈 ADD THIS
   }).catch(err => {
@@ -94,6 +96,33 @@ router.get("/latest", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch heavy base64 snapshot on demand
+router.get("/:bookingRef/attachment", async (req, res) => {
+  try {
+    const { bookingRef } = req.params;
+    const attachment = await bookingService.getBookingSnapshot(bookingRef);
+
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        message: "No layout snapshot string found for this reference key."
+      });
+    }
+
+    res.json({
+      success: true,
+      summarySnapshot: attachment.summary_snapshot
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
   }
 });
 

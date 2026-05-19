@@ -5,10 +5,14 @@ require("dotenv").config();
 const supabase = require("./config/supabase");
 
 const app = express();
-// const port = process.env.PORT || 5000;
+//const port = process.env.PORT || 5000;
 
 // middleware
 app.use(cors());
+
+// IMPORTANT for Billplz callback & high-res base64 string snapshots
+app.use(express.json({ limit: "50mb" })); // 👈 UPDATED TO ALLOW LARGE PAYLOADS
+app.use(express.urlencoded({ limit: "50mb", extended: true })); // 👈 UPDATED TO ALLOW LARGE PAYLOADS
 
 // IMPORTANT for Billplz callback
 app.use(express.json());
@@ -53,6 +57,8 @@ app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/users", require("./routes/user.routes"));
 app.use("/api/bookings", require("./routes/booking"));
 app.use("/api/moments", require("./routes/moments"));
+
+
 
 // --------------------
 // START SERVER

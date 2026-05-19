@@ -186,6 +186,9 @@ async function getLatestBookings() {
       package (
         id,
         name
+      ),
+      booking_attch (
+        id
       )
     `)
     .in("payment_status", ["PAID", "DEPOSIT_PAID"])
@@ -193,6 +196,25 @@ async function getLatestBookings() {
     .limit(5);
 
   if (error) throw error;
+
+  return data;
+}
+
+// ----------------------------------------------------
+// FETCH IMAGE SNAPSHOT STRING ONLY
+// ----------------------------------------------------
+async function getAttachmentByRef(bookingRef) {
+  const { data, error } = await supabase
+    .from("booking_attch")
+    .select("summary_snapshot")
+    .eq("booking_ref", bookingRef)
+    .single(); // We only expect exactly 1 row
+
+  if (error) {
+    // If no attachment exists yet, return null instead of crashing the app
+    if (error.code === "PGRST116") return null; 
+    throw error;
+  }
 
   return data;
 }
@@ -304,6 +326,58 @@ async function getBookingByRef(bookingRef) {
   return data;
 }
 
+//get package id
+async function getPackageById(packageId) {
+  const { data, error } = await supabase
+    .from("package")
+    .select("*")
+    .eq("id", packageId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Package not found");
+  }
+
+  return data;
+}
+
+// ----------------------------------------------------
+// UPSERT BOOKING SNAPSHOT ATTACHMENT (Saves or Updates)
+// ----------------------------------------------------
+async function saveBookingAttachment(bookingRef, summarySnapshot) {
+  const { data, error } = await supabase
+    .from("booking_attch")
+    .upsert(
+      {
+        booking_ref: bookingRef,
+        summary_snapshot: summarySnapshot // Overwrites with the fresh final snapshot string
+      },
+      { onConflict: "booking_ref" } // Tells Supabase to update if this ref already exists
+    )
+    .select();
+
+  if (error) {
+    throw error;
+  }
+
+  return data[0];
+}
+
+// ----------------------------------------------------
+// LINK ATTACHMENT ID TO USER_BOOKING TABLE
+// ----------------------------------------------------
+async function updateBookingAttachmentId(bookingId, attachmentId) {
+  const { error } = await supabase
+    .from("user_booking")
+    .update({ booking_attch_id: attachmentId })
+    .eq("id", bookingId);
+
+  if (error) throw error;
+}
 module.exports = {
   createBookingWithAddons,
   updatePaymentAndFinance,
@@ -316,5 +390,8 @@ module.exports = {
   searchBooking,
   getAddonTotal,
   getBookingByRef,
-  
+  getPackageById,
+  saveBookingAttachment,
+  getAttachmentByRef,
+  updateBookingAttachmentId,
 };
