@@ -1,4 +1,4 @@
-const MODE = 'live'; // change to 'live' for production
+const MODE = 'sandbox'; // change to 'live' for production
 
 const config = {
     sandbox: {
@@ -10,9 +10,12 @@ const config = {
         // backendUrl: 'http://localhost:5000',
 
         // 🔥 NGROK (uncomment when testing webhook locally)
-        backendUrl: 'https://supernormally-martial-monica.ngrok-free.dev',
+        // backendUrl: 'https://supernormally-martial-monica.ngrok-free.dev',
+        // frontendUrl: 'http://localhost:5173'
 
-        frontendUrl: 'http://localhost:5173'
+                // 🔥 NGROK (uncomment when testing webhook locally)
+        backendUrl: 'https://qash-camp-be.vercel.app',
+        frontendUrl: 'https://www.qashcamp.com'
         },
 
     live: {
