@@ -13,8 +13,12 @@ async function createBill({ name, email, amount, bookingId, bookingRef, packageI
         description: `Booking ID: ${bookingId}`,
 
         // 🔥 IMPORTANT
-        callback_url: 'https://supernormally-martial-monica.ngrok-free.dev/api/bookings/billplz-callback',
-        redirect_url: `http://localhost:5173/payment-success?bookingId=${bookingId}`,
+        // callback_url: 'https://supernormally-martial-monica.ngrok-free.dev/api/bookings/billplz-callback',
+        // redirect_url: `http://localhost:5173/payment-success?bookingId=${bookingId}`,
+
+        // 🔥 Live
+        callback_url: `${config.backendUrl}/api/bookings/billplz-callback`,
+        redirect_url: `${config.frontendUrl}/payment-success?bookingId=${bookingId}`,
 
         reference_1_label: 'Booking ID',
         reference_1: bookingId,

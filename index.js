@@ -5,7 +5,7 @@ require("dotenv").config();
 const supabase = require("./config/supabase");
 
 const app = express();
-//const port = process.env.PORT || 5000;
+// const port = process.env.PORT || 5000; // 👈 bila nak run local
 
 // middleware
 app.use(cors());
@@ -64,10 +64,12 @@ app.use("/api/moments", require("./routes/moments"));
 // START SERVER
 // --------------------
 // app.listen(port, () => {
-//   console.log(`Server running on port ${port}`);
+//   console.log(`Server running on port ${port}`);  // 👈 bila nak run local
 // });
 
 // --------------------
 // VERCEL FIX
 // --------------------
-module.exports = app;
+module.exports = app;  // 👈 bila nak run vercel
+
+// 👈 bila nak run vercel masukkan .env file
