@@ -4,7 +4,7 @@ const config = require('../config');
 async function createBill({ name, email, amount, bookingId, bookingRef, packageId }) {
   try {
 
-console.log("MODE:", MODE);
+
 console.log("FRONTEND URL:", config.frontendUrl);
 console.log("BACKEND URL:", config.backendUrl);
 
