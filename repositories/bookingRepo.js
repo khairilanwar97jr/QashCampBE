@@ -397,6 +397,39 @@ async function updateFinalPaymentSnapshot(bookingRef, finalSnapshotData) {
   return data[0];
 }
 
+
+// =================================================================
+// GET BLOCKED BOOKING DATES BY MONTH & YEAR (WITH COUNT)
+// =================================================================
+async function getBlockedBookingDates(year, month) {
+  const formattedMonth = String(month).padStart(2, '0');
+  const startOfPeriod = `${year}-${formattedMonth}-01`;
+  
+  const lastDay = new Date(year, month, 0).getDate();
+  const endOfPeriod = `${year}-${formattedMonth}-${lastDay}`;
+
+  // Add { count: 'exact' } as the second argument to .select()
+  const { data, error, count } = await supabase
+    .from("user_booking")
+    .select("id, package_id, start_date, end_date", { count: "exact" })
+    // Change filter to target payment_status array values
+    .in("payment_status", ["PAID", "DEPOSIT_PAID"])
+    .gte("end_date", startOfPeriod)
+    .lte("start_date", endOfPeriod)
+    .order("start_date", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  // Return both the array data and the row count total
+  return {
+    records: data,
+    totalCount: count || 0
+  };
+}
+
+
 module.exports = {
   createBookingWithAddons,
   updatePaymentAndFinance,
@@ -414,4 +447,5 @@ module.exports = {
   getAttachmentByRef,
   updateBookingAttachmentId,
   updateFinalPaymentSnapshot,
+  getBlockedBookingDates,
 };

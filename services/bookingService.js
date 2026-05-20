@@ -371,6 +371,25 @@ function calculateNights(startDate, endDate) {
   return Math.max(1, diffTime / (1000 * 60 * 60 * 24));
 }
 
+// =================================================================
+// GET BLOCKED LOGISTICS TIMELINES
+// =================================================================
+async function getBlockedLogisticsTimelines(year, month) {
+  const { records, totalCount } = await bookingRepo.getBlockedBookingDates(year, month);
+
+  const formattedRecords = records.map((row) => ({
+    id: Number(row.id),
+    packageId: Number(row.package_id),
+    startDate: row.start_date,
+    endDate: row.end_date
+  }));
+
+  return {
+    total: totalCount,
+    bookings: formattedRecords
+  };
+}
+
 module.exports = {
   createBookingAndPayment,
   handleBillplzCallback,
@@ -380,4 +399,5 @@ module.exports = {
   createFinalPayment,
   getBookingByRef,
   getBookingSnapshot,
+  getBlockedLogisticsTimelines,
 };

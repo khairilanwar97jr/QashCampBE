@@ -198,7 +198,33 @@ router.get("/getBooking", async (req, res) => {
 });
 
 
+// =================================================================
+// GET BLOCKED DATES ROUTE
+// =================================================================
+router.get("/blocked-dates", async (req, res) => {
+  try {
+    const now = new Date();
+    // Default to current year and month (1-12 format) if missing
+    const year = parseInt(req.query.year) || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
 
+    const result = await bookingService.getBlockedLogisticsTimelines(year, month);
 
+    res.json({
+      success: true,
+      year,
+      month,
+      total: result.total,
+      bookings: result,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
 
 module.exports = router;
