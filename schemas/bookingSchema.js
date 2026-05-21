@@ -4,7 +4,7 @@ const bookingSchema = z.object({
   type: z.enum(["BOOKING", "WALK_IN"]),
 
   firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  lastName: z.string().optional(),
 
   noId: z.string().min(1),
 
