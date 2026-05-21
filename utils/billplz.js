@@ -1,48 +1,46 @@
-const axios = require('axios');
-const config = require('../config');
+const axios = require("axios");
+const config = require("../config");
 
-async function createBill({ name, email, amount, bookingId, bookingRef, packageId }) {
+async function createBill(data) {
   try {
-
-
-console.log("FRONTEND URL:", config.frontendUrl);
-console.log("BACKEND URL:", config.backendUrl);
-
-
     const response = await axios.post(
       config.apiUrl,
       {
         collection_id: config.collectionId,
-        name,
-        email,
-        amount,
-        description: `Booking ID: ${bookingId}`,
 
-        // 🔥 IMPORTANT
-        // callback_url: 'https://supernormally-martial-monica.ngrok-free.dev/api/bookings/billplz-callback',
-        // redirect_url: `http://localhost:5173/payment-success?bookingId=${bookingId}`,
+        name: data.name,
+        email: data.email,
+        amount: data.amount,
+        description: data.description || `Booking ${data.bookingId}`,
 
-        // 🔥 Live
+        // =========================
+        // CALLBACK / REDIRECT
+        // =========================
         callback_url: `${config.backendUrl}/api/bookings/billplz-callback`,
-        redirect_url: `${config.frontendUrl}/payment-success?bookingId=${bookingId}`,
+        redirect_url: `${config.frontendUrl}/payment-success?bookingId=${data.bookingId}`,
 
-        reference_1_label: 'Booking ID',
-        reference_1: bookingId,
+        // =========================
+        // REFERENCES (IMPORTANT)
+        // =========================
+        reference_1_label: "Booking ID",
+        reference_1: data.bookingId,
 
-        // ✔ ADD THIS
-        reference_2_label: 'Package ID',
-        reference_2: packageId
-
-        
+        reference_2_label: "Package ID",
+        reference_2: data.packageId
       },
-      { auth: { username: config.apiKey, password: '' } }
+      {
+        auth: {
+          username: config.apiKey,
+          password: ""
+        }
+      }
     );
 
+    console.log("💸 Billplz response:", response.data);
 
-    console.log('💸 Billplz response:', response.data);
-    return response.data.url;
+    return response.data.url; // payment URL
   } catch (err) {
-    console.error('💥 Billplz Error:', err.response?.data || err.message);
+    console.error("💥 Billplz Error:", err.response?.data || err.message);
     throw err;
   }
 }

@@ -2,6 +2,7 @@ const bookingRepo = require("../repositories/bookingRepo");
 const { createBill } = require("../utils/billplz");
 const PAYMENT_STATUS = require("../constants/paymentStatus");
 const generateBookingRef = require("../utils/generateBookingRef");
+const PACKAGE_NAMES = require("../constants/packageConstants");
 
 // --------------------
 // CREATE BOOKING + PAYMENT
@@ -13,15 +14,20 @@ async function createBookingAndPayment(bookingData) {
   const isWalkIn = bookingData.type === "WALK_IN";
   let depositAmount;
 
-  // Determine deposit based on package ID
-  if (bookingData.packageId >= 1 && bookingData.packageId <= 6) {
-    depositAmount = 50;
-  } else if (bookingData.packageId === 7) {
-    depositAmount = 100;
-  } else {
-    // If needed, handle unexpected package IDs
-    throw new Error("Invalid package ID for deposit calculation");
-  }
+const pkgDataForDepo = await bookingRepo.getPackageById(bookingData.packageId);
+
+if (!pkgDataForDepo) {
+  throw new Error("Package not found");
+}
+
+// Business rules
+if (pkgDataForDepo.name === PACKAGE_NAMES.RIMBAYU) {
+  depositAmount = 100;
+} else if (pkgDataForDepo.name === PACKAGE_NAMES.VOUCHER) {
+  depositAmount = 0;
+} else {
+  depositAmount = 50;
+}
 
   const FPX_FEE = 1.25;
 
@@ -390,6 +396,122 @@ async function getBlockedLogisticsTimelines(year, month) {
   };
 }
 
+
+async function createBookingAndPaymentLiveTest(bookingData) {
+
+  const bookingRef = generateBookingRef();
+
+  const isWalkIn = bookingData.type === "WALK_IN";
+
+  // ❌ REMOVE DEPOSIT IN TEST MODE
+  let depositAmount = 0;
+
+  // ==================================================
+  // 1️⃣ GET PACKAGE PRICE
+  // ==================================================
+  const pkgData = await bookingRepo.getPackageById(bookingData.packageId);
+
+  if (!pkgData) {
+    throw new Error("Package not found");
+  }
+
+  const packagePrice = pkgData.price;
+
+  // ==================================================
+  // 2️⃣ ADD-ONS (same)
+  // ==================================================
+  const addOnTotal = Array.isArray(bookingData.addOnIds) && bookingData.addOnIds.length
+    ? await bookingRepo.getAddonTotal(bookingData.addOnIds)
+    : 0;
+
+  // ==================================================
+  // 3️⃣ NIGHTS (same)
+  // ==================================================
+  const nightCount = calculateNights(
+    bookingData.startDate,
+    bookingData.endDate
+  );
+
+  const nightTotal = (nightCount - 1) * 50;
+
+  // ==================================================
+  // 4️⃣ EXPECTED TOTAL (TEST MODE)
+  // ==================================================
+  let expectedTotal =
+    packagePrice +
+    addOnTotal +
+    nightTotal +
+    depositAmount;
+
+  if (Number(bookingData.total) !== Number(expectedTotal)) {
+    throw new Error(`Total mismatch (TEST). FE: ${bookingData.total}, BE: ${expectedTotal}`);
+  }
+
+  // ==================================================
+  // 5️⃣ SAVE BOOKING (same)
+  // ==================================================
+  const booking = await bookingRepo.createBookingWithAddons(
+    bookingData,
+    bookingRef
+  );
+
+  // snapshot (same)
+  if (bookingData.summarySnapshot) {
+    try {
+      const savedAttachment = await bookingRepo.saveBookingAttachment(
+        bookingRef,
+        bookingData.summarySnapshot
+      );
+
+      if (savedAttachment && savedAttachment.id) {
+        await bookingRepo.updateBookingAttachmentId(booking.id, savedAttachment.id);
+      }
+    } catch (e) {}
+  }
+
+  // ==================================================
+  // 6️⃣ FINANCIAL INIT (same but deposit = 0)
+  // ==================================================
+  await bookingRepo.updateFinancialInit(booking.id, {
+    deposit_amount: 0,
+    total_paid: 0,
+    refund_amount: 0,
+    net_amount: 0,
+    payment_status: "UNPAID",
+    booking_status: "BOOKED"
+  });
+
+  // ==================================================
+  // 7️⃣ BILLPLZ (THIS IS CRITICAL 🔥 SAME LOGIC)
+  // ==================================================
+  const billAmount =
+    packagePrice +
+    addOnTotal +
+    nightTotal +
+    depositAmount + 1.25;
+
+  const billUrl = await createBill({
+    name: `${booking.first_name} ${booking.last_name}`,
+    email: booking.email_addr,
+    amount: billAmount * 100,
+    bookingId: booking.id,
+    bookingRef: booking.booking_ref,
+    packageId: booking.package_id
+  });
+
+  const billplzId = billUrl.split("/").pop();
+
+  await bookingRepo.updateBillplzId(booking.id, billplzId);
+
+  // ==================================================
+  // 8️⃣ RETURN (IMPORTANT)
+  // ==================================================
+  return {
+    booking,
+    paymentUrl: billUrl
+  };
+}
+
 module.exports = {
   createBookingAndPayment,
   handleBillplzCallback,
@@ -400,4 +522,5 @@ module.exports = {
   getBookingByRef,
   getBookingSnapshot,
   getBlockedLogisticsTimelines,
+  createBookingAndPaymentLiveTest,
 };

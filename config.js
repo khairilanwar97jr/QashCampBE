@@ -1,34 +1,29 @@
-const MODE = 'sandbox'; // change to 'live' for production
+const MODE = process.env.MODE;
+
+if (!MODE) {
+  throw new Error("MODE is missing in .env (must be 'sandbox' or 'live')");
+}
 
 const config = {
-    sandbox: {
-        apiKey: 'e0e21704-240c-4fff-9a8a-a86be136b4cb',
-        collectionId: 'fnfno2qa',
-        apiUrl: 'https://www.billplz-sandbox.com/api/v3/bills',
+  sandbox: {
+    apiKey: process.env.BILLPLZ_SANDBOX_KEY,
+    collectionId: process.env.BILLPLZ_SANDBOX_COLLECTION,
+    apiUrl: "https://www.billplz-sandbox.com/api/v3/bills",
+    backendUrl: process.env.BACKEND_URL,
+    frontendUrl: process.env.FRONTEND_URL
+  },
 
-        // Local testing (default)
-        // backendUrl: 'http://localhost:5000',
-
-        // 🔥 NGROK (uncomment when testing webhook locally)
-        // backendUrl: 'https://supernormally-martial-monica.ngrok-free.dev',
-        // frontendUrl: 'http://localhost:5173'
-
-        // 🔥 NGROK (uncomment when testing webhook locally)
-        backendUrl: 'https://qash-camp-be.vercel.app',
-        frontendUrl: 'https://www.qashcamp.com'
-        },
-
-    live: {
-        apiKey: 'YOUR_LIVE_API_KEY',
-        collectionId: 'YOUR_LIVE_COLLECTION_ID',
-        apiUrl: 'https://www.billplz.com/api/v3/bills',
-
-        backendUrl: 'https://qash-camp-be.vercel.app',
-        frontendUrl: 'https://www.qashcamp.com'
-        
-    }
+  live: {
+    apiKey: process.env.BILLPLZ_LIVE_KEY,
+    collectionId: process.env.BILLPLZ_LIVE_COLLECTION,
+    apiUrl: "https://www.billplz.com/api/v3/bills",
+    backendUrl: process.env.BACKEND_URL,
+    frontendUrl: process.env.FRONTEND_URL
+  }
 };
 
-const current = config[MODE];
+if (!config[MODE]) {
+  throw new Error(`Invalid MODE in .env: ${MODE}`);
+}
 
-module.exports = current;
+module.exports = config[MODE];

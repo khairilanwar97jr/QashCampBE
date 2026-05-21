@@ -227,4 +227,28 @@ router.get("/blocked-dates", async (req, res) => {
   }
 });
 
+router.post("/book-live-test", async (req, res) => {
+  try {
+    // 🔥 VALIDATE HERE (same schema)
+    const bookingData = bookingSchema.parse(req.body);
+
+    // 👉 CALL SAME SERVICE (or your test service if you swapped internally)
+    const result = await bookingService.createBookingAndPaymentLiveTest(bookingData);
+
+    res.json({
+      success: true,
+      bookingRef: result.booking.booking_ref,
+      paymentUrl: result.paymentUrl,   // 🔥 REQUIRED for Billplz redirect
+      bookingId: result.booking.id
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(400).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
 module.exports = router;
