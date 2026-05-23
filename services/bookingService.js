@@ -387,7 +387,8 @@ async function getBlockedLogisticsTimelines(year, month) {
     id: Number(row.id),
     packageId: Number(row.package_id),
     startDate: row.start_date,
-    endDate: row.end_date
+    endDate: row.end_date,
+    firstName: row.first_name
   }));
 
   return {

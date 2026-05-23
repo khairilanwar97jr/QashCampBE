@@ -411,7 +411,7 @@ async function getBlockedBookingDates(year, month) {
   // Add { count: 'exact' } as the second argument to .select()
   const { data, error, count } = await supabase
     .from("user_booking")
-    .select("id, package_id, start_date, end_date", { count: "exact" })
+    .select("id, package_id, start_date, end_date, first_name ", { count: "exact" })
     // Change filter to target payment_status array values
     .in("payment_status", ["PAID", "DEPOSIT_PAID"])
     .gte("end_date", startOfPeriod)

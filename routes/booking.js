@@ -216,6 +216,7 @@ router.get("/blocked-dates", async (req, res) => {
       month,
       total: result.total,
       bookings: result,
+      first_name : result.length > 0 ? result[0].first_name : null  // 👈 TEST ONLY, REMOVE LATER
     });
 
   } catch (err) {
