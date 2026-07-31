@@ -24,6 +24,31 @@ router.get("/availability", async (req, res) => {
   }
 });
 
+// Get blocked calendar dates for one package
+router.get("/:id/blocked-dates", async (req, res) => {
+  const { id } = req.params;
+  const { startDate, endDate } = req.query;
+
+  if (!startDate || !endDate) {
+    return res.status(400).json({
+      message: "Missing startDate or endDate"
+    });
+  }
+
+  try {
+    const blockedDates = await packageService.getPackageBlockedDates(
+      id,
+      startDate,
+      endDate
+    );
+
+    res.json(blockedDates);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 
 //get package by id
 router.get("/:id", async (req, res) => {

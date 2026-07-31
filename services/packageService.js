@@ -2,8 +2,19 @@ const PAYMENT_STATUS = require("../constants/paymentStatus");
 const {
   findAllPackages,
   findOverlappingBookings,
-  findPackageById
+  findPackageById,
+  findBookingsForBlockedDates
 } = require("../repositories/packageRepo");
+
+const CLEANUP_DAYS = 2;
+const PREPARATION_DAYS_BEFORE = 1;
+
+function shiftDate(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+
+  return date.toISOString().slice(0, 10);
+}
 
 // Check a single package
 async function isAvailable(packageId, startDate, endDate) {
@@ -32,6 +43,30 @@ async function getAllPackagesAvailability(startDate, endDate) {
   return result;
 }
 
+// Get calendar ranges that cannot be selected for one package.
+async function getPackageBlockedDates(packageId, startDate, endDate) {
+  const bookings = await findBookingsForBlockedDates(
+    packageId,
+    startDate,
+    endDate
+  );
+
+  const blockedRanges = bookings
+    .filter(booking =>
+      [PAYMENT_STATUS.PAID, PAYMENT_STATUS.DEPOSIT_PAID]
+        .includes(booking.payment_status)
+    )
+    .map(booking => ({
+      startDate: shiftDate(booking.start_date, -PREPARATION_DAYS_BEFORE),
+      endDate: shiftDate(booking.end_date, CLEANUP_DAYS)
+    }));
+
+  return {
+    packageId,
+    blockedRanges
+  };
+}
+
 // GET PACKAGE BY ID
 async function getPackageById(id) {
 
@@ -47,4 +82,5 @@ async function getPackageById(id) {
 
 module.exports = {   getAllPackagesAvailability,
   getPackageById,
+  getPackageBlockedDates,
   isAvailable };
