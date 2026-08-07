@@ -53,7 +53,7 @@ async function getPackageBlockedDates(packageId, startDate, endDate) {
 
   const blockedRanges = bookings
     .filter(booking =>
-      [PAYMENT_STATUS.PAID, PAYMENT_STATUS.DEPOSIT_PAID]
+      [PAYMENT_STATUS.PAID]
         .includes(booking.payment_status)
     )
     .map(booking => ({
