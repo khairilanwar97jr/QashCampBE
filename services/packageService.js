@@ -52,18 +52,20 @@ async function getPackageBlockedDates(packageId, startDate, endDate) {
   );
 
   const blockedRanges = bookings
-    .filter(booking =>
-      [PAYMENT_STATUS.PAID]
-        .includes(booking.payment_status)
-    )
+    .filter(booking => booking.booking_status === "BOOKED")
     .map(booking => ({
+      id: booking.id,
       startDate: shiftDate(booking.start_date, -PREPARATION_DAYS_BEFORE),
       endDate: shiftDate(booking.end_date, CLEANUP_DAYS)
     }));
 
+  const uniqueBlockedRanges = [...new Map(
+    blockedRanges.map(range => [`${range.id}|${range.startDate}|${range.endDate}`, range])
+  ).values()];
+
   return {
     packageId,
-    blockedRanges
+    blockedRanges: uniqueBlockedRanges
   };
 }
 

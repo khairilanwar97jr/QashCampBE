@@ -134,8 +134,7 @@ if (bookingData.summarySnapshot) {
     total_paid: 0,
     refund_amount: 0,
     net_amount: 0,
-    payment_status: "UNPAID",
-    booking_status: "BOOKED"
+    payment_status: "UNPAID"
   });
 
   // ==================================================
@@ -238,12 +237,19 @@ async function handleBillplzCallback({
 
   const netAmount = newTotalPaid - deposit;
 
-  await bookingRepo.updatePaymentAndFinance(
-    booking.id,
-    paymentStatus,
-    newTotalPaid,
-    netAmount
-  );
+const bookingStatus =
+  paymentStatus === PAYMENT_STATUS.PAID ||
+  paymentStatus === PAYMENT_STATUS.DEPOSIT_PAID
+    ? "BOOKED"
+    : null;
+
+await bookingRepo.updatePaymentAndFinance(
+  booking.id,
+  paymentStatus,
+  newTotalPaid,
+  netAmount,
+  bookingStatus
+);
 
   console.log("✅ PAYMENT UPDATED:", {
     bookingId: booking.id,
@@ -478,8 +484,7 @@ async function createBookingAndPaymentLiveTest(bookingData) {
     total_paid: 0,
     refund_amount: 0,
     net_amount: 0,
-    payment_status: "UNPAID",
-    booking_status: "BOOKED"
+    payment_status: "UNPAID"
   });
 
   // ==================================================

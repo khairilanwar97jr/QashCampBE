@@ -111,12 +111,14 @@ async function updatePaymentAndFinance(
   bookingId,
   paymentStatus,
   totalPaid,
-  netAmount
+  netAmount,
+  bookingStatus = null
 ) {
   const { error } = await supabase
     .from("user_booking")
     .update({
       payment_status: paymentStatus,
+      booking_status: bookingStatus,
       total_paid: totalPaid,
       net_amount: netAmount
     })
