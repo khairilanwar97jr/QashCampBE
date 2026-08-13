@@ -55,6 +55,7 @@ async function getPackageBlockedDates(packageId, startDate, endDate) {
     .filter(booking => booking.booking_status === "BOOKED")
     .map(booking => ({
       id: booking.id,
+      bookingRef: booking.booking_ref,
       startDate: shiftDate(booking.start_date, -PREPARATION_DAYS_BEFORE),
       endDate: shiftDate(booking.end_date, CLEANUP_DAYS)
     }));

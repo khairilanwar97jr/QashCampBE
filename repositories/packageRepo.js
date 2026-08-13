@@ -55,7 +55,7 @@ async function findBookingsForBlockedDates(packageId, startDate, endDate) {
 
   const { data, error } = await supabase
     .from("user_booking")
-    .select("id, start_date, end_date, payment_status, booking_status")
+    .select("id, booking_ref, start_date, end_date, payment_status, booking_status")
     .eq("package_id", packageId)
     .lte("start_date", bookingStartThreshold)
     .gte("end_date", bookingEndThreshold);
