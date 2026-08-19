@@ -20,7 +20,7 @@ async function createBookingWithAddons(bookingData, bookingRef, paymentStatus = 
     phoneNo,
     campPlace,
     noId,
-    addOnIds = [],
+    addOns = [],
   } = bookingData;
 
 const { data: pkg, error: pkgError } = await supabase
@@ -85,10 +85,11 @@ console.log("PACKAGE PRICE:", pkg.price);
   if (bookingError) throw bookingError;
 
   // 2️⃣ Insert addons
-  if (addOnIds.length > 0) {
-    const addonRows = addOnIds.map((addOnId) => ({
+  if (addOns.length > 0) {
+    const addonRows = addOns.map(({ addonId, quantity }) => ({
       booking_id: booking.id,
-      addon_id: addOnId,
+      addon_id: addonId,
+      quantity,
       start_date: startDate,
       end_date: endDate,
       status: 1,
@@ -102,6 +103,63 @@ console.log("PACKAGE PRICE:", pkg.price);
   }
 
   return booking;
+}
+
+// Insert add-ons selected during final payment. If the booking already has the
+// same add-on, keep one reservation and update its quantity instead.
+async function syncFinalPaymentAddons(booking, addOns) {
+  if (!Array.isArray(addOns) || addOns.length === 0) return [];
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("booking_addon_reservation")
+    .select("id, addon_id")
+    .eq("booking_id", booking.id)
+    .eq("status", 1);
+
+  if (existingError) throw existingError;
+
+  const existingByAddonId = new Map(
+    (existingRows || []).map((row) => [Number(row.addon_id), row])
+  );
+
+  const rowsToInsert = [];
+
+  for (const { addonId, quantity } of addOns) {
+    const existing = existingByAddonId.get(Number(addonId));
+
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from("booking_addon_reservation")
+        .update({
+          quantity,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          status: 1,
+        })
+        .eq("id", existing.id);
+
+      if (updateError) throw updateError;
+    } else {
+      rowsToInsert.push({
+        booking_id: booking.id,
+        addon_id: addonId,
+        quantity,
+        start_date: booking.start_date,
+        end_date: booking.end_date,
+        status: 1,
+      });
+    }
+  }
+
+  if (rowsToInsert.length > 0) {
+    const { error: insertError } = await supabase
+      .from("booking_addon_reservation")
+      .insert(rowsToInsert);
+
+    if (insertError) throw insertError;
+  }
+
+  return addOns;
 }
 
 // --------------------
@@ -266,16 +324,45 @@ async function searchBooking({ bookingRef, phoneNo, emailAddr }) {
   return data;
 }
 
-async function getAddonTotal(addOnIds) {
+async function getAddonTotal(addOns) {
+
+  if (!Array.isArray(addOns) || addOns.length === 0) return 0;
+
+  const addOnIds = addOns.map(({ addonId }) => addonId);
 
   const { data, error } = await supabase
     .from("add_on_item")
-    .select("price")
+    .select("id, price, max_quantity")
     .in("id", addOnIds);
 
   if (error) throw error;
 
-  return data.reduce((sum, item) => sum + item.price, 0);
+  if (data.length !== addOnIds.length) {
+    throw new Error("One or more add-ons were not found");
+  }
+
+  const pricesById = new Map(data.map((item) => [Number(item.id), Number(item.price)]));
+
+  const quantitiesById = new Map(
+    data.map((item) => [
+      Number(item.id),
+      item.max_quantity == null ? null : Number(item.max_quantity),
+    ])
+  );
+
+  for (const { addonId, quantity } of addOns) {
+    const maxQuantity = quantitiesById.get(addonId);
+    if (Number.isFinite(maxQuantity) && quantity > maxQuantity) {
+      throw new Error(
+        `Add-on ${addonId} quantity exceeds the maximum of ${maxQuantity}`
+      );
+    }
+  }
+
+  return addOns.reduce(
+    (sum, { addonId, quantity }) => sum + pricesById.get(addonId) * quantity,
+    0
+  );
 }
 
 async function getBookingById(id) {
@@ -434,6 +521,7 @@ async function getBlockedBookingDates(year, month) {
 
 module.exports = {
   createBookingWithAddons,
+  syncFinalPaymentAddons,
   updatePaymentAndFinance,
   updateBillplzId,
   updatePaymentStatusByBillplzId,

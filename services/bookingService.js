@@ -45,8 +45,8 @@ if (pkgDataForDepo.name === PACKAGE_NAMES.RIMBAYU) {
   // ==================================================
   // 2️⃣ CALCULATE ADD-ONS
   // ==================================================
-  const addOnTotal = Array.isArray(bookingData.addOnIds) && bookingData.addOnIds.length
-    ? await bookingRepo.getAddonTotal(bookingData.addOnIds)
+  const addOnTotal = Array.isArray(bookingData.addOns) && bookingData.addOns.length
+    ? await bookingRepo.getAddonTotal(bookingData.addOns)
     : 0;
 
   // ==================================================
@@ -287,7 +287,7 @@ async function searchBooking({ bookingRef, phoneNo, emailAddr }) {
 // ==================================================
 async function createFinalPayment({
   bookingId,
-  addOnIds = [],
+  addOns = [],
   extraNightCount = 0,
   summarySnapshot // ◄ Added to capture frontend base64 payload
 }) {
@@ -316,9 +316,15 @@ async function createFinalPayment({
   const pkgData = await bookingRepo.getPackageById(booking.package_id);
   const packagePrice = pkgData.price;
 
-  const addOnTotal = addOnIds?.length
-    ? await bookingRepo.getAddonTotal(addOnIds)
+  const addOnTotal = addOns?.length
+    ? await bookingRepo.getAddonTotal(addOns)
     : 0;
+
+  // Keep the reservation table aligned with the add-ons submitted for the
+  // final payment. Existing add-ons are updated to avoid duplicate rows.
+  if (addOns?.length) {
+    await bookingRepo.syncFinalPaymentAddons(booking, addOns);
+  }
 
   const nightTotal = extraNightCount * NIGHT_RATE;
 
@@ -427,8 +433,8 @@ async function createBookingAndPaymentLiveTest(bookingData) {
   // ==================================================
   // 2️⃣ ADD-ONS (same)
   // ==================================================
-  const addOnTotal = Array.isArray(bookingData.addOnIds) && bookingData.addOnIds.length
-    ? await bookingRepo.getAddonTotal(bookingData.addOnIds)
+  const addOnTotal = Array.isArray(bookingData.addOns) && bookingData.addOns.length
+    ? await bookingRepo.getAddonTotal(bookingData.addOns)
     : 0;
 
   // ==================================================

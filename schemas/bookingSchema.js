@@ -1,5 +1,10 @@
 const { z } = require("zod");
 
+const addOnSchema = z.object({
+  addonId: z.number().int().positive(),
+  quantity: z.number().int().positive(),
+});
+
 const bookingSchema = z.object({
   type: z.enum(["BOOKING", "WALK_IN"]),
 
@@ -17,7 +22,20 @@ const bookingSchema = z.object({
 
   packageId: z.number(),
 
-  addOnIds: z.array(z.number()).optional(),
+  addOns: z.array(addOnSchema).default([]).superRefine((addOns, ctx) => {
+    const seen = new Set();
+
+    addOns.forEach(({ addonId }, index) => {
+      if (seen.has(addonId)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [index, "addonId"],
+          message: "Duplicate addonId",
+        });
+      }
+      seen.add(addonId);
+    });
+  }),
 
   phoneNo: z.string().min(1),
 
