@@ -56,6 +56,7 @@ app.use("/api/addon", require("./routes/addOn"));
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/users", require("./routes/user.routes"));
 app.use("/api/bookings", require("./routes/booking"));
+app.use("/api/checklist", require("./routes/checklist"));
 app.use("/api/moments", require("./routes/moments"));
 
 
