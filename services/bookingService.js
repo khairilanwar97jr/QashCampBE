@@ -3,6 +3,7 @@ const { createBill } = require("../utils/billplz");
 const PAYMENT_STATUS = require("../constants/paymentStatus");
 const generateBookingRef = require("../utils/generateBookingRef");
 const PACKAGE_NAMES = require("../constants/packageConstants");
+const { toLatestBooking } = require("../dto/latestBooking");
 
 // --------------------
 // CREATE BOOKING + PAYMENT
@@ -265,7 +266,12 @@ async function getBookingStatus(id) {
 }
 
 async function getLatestBookings() {
-  return bookingRepo.getLatestBookings();
+  const bookings = await bookingRepo.getLatestBookings();
+  return bookings.map(toLatestBooking);
+}
+
+async function getLatestBookingDetailsById(id) {
+  return bookingRepo.getLatestBookingDetailsById(id);
 }
 
 async function getBookingSnapshot(bookingRef) {
@@ -529,6 +535,7 @@ module.exports = {
   handleBillplzCallback,
   getBookingStatus,
   getLatestBookings,
+  getLatestBookingDetailsById,
   searchBooking,
   createFinalPayment,
   getBookingByRef,

@@ -99,6 +99,28 @@ router.get("/latest", async (req, res) => {
   }
 });
 
+// PUBLIC ENDPOINT: the passcode shown by the frontend is not a security
+// boundary. Any caller can request these details directly by booking ID.
+router.get("/latest/details/:id", async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: "A valid booking ID is required" });
+  }
+
+  try {
+    const data = await bookingService.getLatestBookingDetailsById(id);
+
+    if (!data) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Fetch heavy base64 snapshots on demand
 router.get("/:bookingRef/attachment", async (req, res) => {
   try {

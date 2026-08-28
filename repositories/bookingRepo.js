@@ -242,11 +242,13 @@ async function getLatestBookings() {
   const { data, error } = await supabase
     .from("user_booking")
     .select(`
-      *,
-      package (
-        id,
-        name
-      ),
+      id,
+      first_name,
+      createddate,
+      start_date,
+      end_date,
+      camp_place,
+      payment_status,
       booking_attch (
         id
       )
@@ -414,6 +416,29 @@ async function getBookingByRef(bookingRef) {
   return data;
 }
 
+// This intentionally returns the former rich latest-booking record for the
+// public Details modal. Do not treat the frontend passcode as access control.
+async function getLatestBookingDetailsById(id) {
+  const { data, error } = await supabase
+    .from("user_booking")
+    .select(`
+      *,
+      package (
+        id,
+        name
+      ),
+      booking_attch (
+        id
+      )
+    `)
+    .eq("id", id)
+    .in("payment_status", ["PAID", "DEPOSIT_PAID"])
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 //get package id
 async function getPackageById(packageId) {
   const { data, error } = await supabase
@@ -527,6 +552,7 @@ module.exports = {
   updatePaymentStatusByBillplzId,
   getBookingById,
   getLatestBookings,
+  getLatestBookingDetailsById,
   getBookingByBillplzId,
   updateFinancialInit,
   searchBooking,
