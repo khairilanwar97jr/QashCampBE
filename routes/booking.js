@@ -30,31 +30,17 @@ router.post("/book", async (req, res) => {
 
 router.post('/billplz-callback', async (req, res) => {
   const billplzId = req.body?.id;
-  let bookingId = req.body?.reference_1;
-  let packageId = req.body?.reference_2;
-  const paid = req.body?.paid;
-  const amount = req.body?.amount; // 👈 ADD THIS
-
-  console.log("📥 CALLBACK:", req.body);
-
-  // ⚠️ only reject if totally invalid
-  if (!paid || !billplzId) {
-    console.log("⚠ Invalid callback payload");
-    return res.status(200).json({ received: false });
+  if (!billplzId || typeof billplzId !== "string") {
+    return res.status(400).json({ received: false });
   }
-
-  // respond immediately
-  res.status(200).json({ received: true });
-
-  bookingService.handleBillplzCallback({
-    billplzId,
-    bookingId,
-    packageId,  // 👈 ADD THIS
-    paid,
-      amount   // 👈 ADD THIS
-  }).catch(err => {
-    console.error("❌ Callback error:", err.message);
-  });
+  try {
+    await bookingService.handleBillplzCallback({ billplzId });
+    res.status(200).json({ received: true });
+  } catch (err) {
+    console.error("Callback error:", err.message);
+    // Let Billplz retry when verification or saving fails.
+    res.status(500).json({ received: false });
+  }
 });
 
 // GET booking status (SECURE CHECK)

@@ -1,9 +1,10 @@
 const bookingRepo = require("../repositories/bookingRepo");
-const { createBill } = require("../utils/billplz");
+const { createBill, getBill } = require("../utils/billplz");
 const PAYMENT_STATUS = require("../constants/paymentStatus");
 const generateBookingRef = require("../utils/generateBookingRef");
 const PACKAGE_NAMES = require("../constants/packageConstants");
 const { toLatestBooking } = require("../dto/latestBooking");
+const { sendPaymentReceipt } = require("../utils/email");
 
 // --------------------
 // CREATE BOOKING + PAYMENT
@@ -162,7 +163,7 @@ if (bookingData.summarySnapshot) {
     amount: billAmount * 100,
     bookingId: booking.id,
     bookingRef: booking.booking_ref,
-    packageId: booking.package_id
+    paymentType: isWalkIn ? "FULL" : "DEPOSIT"
   });
 
   const billplzId = billUrl.split("/").pop();
@@ -183,14 +184,42 @@ if (bookingData.summarySnapshot) {
 // --------------------
 // HANDLE BILLPLZ CALLBACK
 // --------------------
-async function handleBillplzCallback({
+const pendingPaymentChecks = new Map();
+
+async function handleBillplzCallback({ billplzId }) {
+  if (!billplzId) throw new Error("Bill ID is required");
+  if (pendingPaymentChecks.has(billplzId)) {
+    return pendingPaymentChecks.get(billplzId);
+  }
+  const check = (async () => {
+    // Read payment and references from Billplz, never trust browser/callback claims.
+    const bill = await getBill(billplzId);
+    if (String(bill.id) !== String(billplzId)) throw new Error("Bill ID mismatch");
+    return applyVerifiedPayment({
+      billplzId: bill.id,
+      bookingId: bill.reference_1,
+      paymentType: bill.reference_2,
+      paid: bill.paid,
+      amount: bill.paid_amount,
+    });
+  })();
+  pendingPaymentChecks.set(billplzId, check);
+  try {
+    return await check;
+  } finally {
+    pendingPaymentChecks.delete(billplzId);
+  }
+}
+
+async function applyVerifiedPayment({
   billplzId,
   bookingId,
+  paymentType,
   paid,
   amount,
 }) {
   const paidAmount = Number(amount || 0) / 100;
-  const isPaid = paid === "true";
+  const isPaid = paid === true || paid === "true";
   const FPX_FEE = 1.25;
   let booking;
 
@@ -202,13 +231,38 @@ async function handleBillplzCallback({
 
   if (!booking) throw new Error("Booking not found");
 
-  // already fully paid → stop
-  if (booking.payment_status === PAYMENT_STATUS.PAID) {
-    console.log("Already fully paid:", booking.id);
+  if (String(booking.billplz_id) !== String(billplzId)) {
+    console.log("Ignoring stale Billplz callback:", billplzId);
     return;
   }
 
   if (!isPaid) return;
+
+  let normalizedPaymentType = String(paymentType || "").toUpperCase();
+  // Older initial bills used a package ID instead of a payment type.
+  if (!["DEPOSIT", "FINAL", "FULL"].includes(normalizedPaymentType) &&
+      booking.payment_status === PAYMENT_STATUS.UNPAID) {
+    normalizedPaymentType = booking.booking_type === "WALK_IN" ? "FULL" : "DEPOSIT";
+  }
+  const validTransition =
+    (normalizedPaymentType === "DEPOSIT" &&
+      booking.booking_type === "BOOKING" &&
+      booking.payment_status === PAYMENT_STATUS.UNPAID) ||
+    (normalizedPaymentType === "FINAL" &&
+      booking.booking_type === "BOOKING" &&
+      booking.payment_status === PAYMENT_STATUS.DEPOSIT_PAID) ||
+    (normalizedPaymentType === "FULL" &&
+      booking.booking_type === "WALK_IN" &&
+      booking.payment_status === PAYMENT_STATUS.UNPAID);
+
+  if (!validTransition) {
+    console.log("Ignoring duplicate or invalid payment callback:", {
+      bookingId: booking.id,
+      paymentType: normalizedPaymentType,
+      paymentStatus: booking.payment_status,
+    });
+    return;
+  }
 
   let paymentStatus = PAYMENT_STATUS.FAILED;
   let newTotalPaid = booking.total_paid || 0;
@@ -219,19 +273,16 @@ async function handleBillplzCallback({
     deposit = 100;
   }
 
-  // 🟡 FIRST PAYMENT (DEPOSIT)
-  if (booking.payment_status !== PAYMENT_STATUS.DEPOSIT_PAID && booking.booking_type === "BOOKING") {
+  if (normalizedPaymentType === "DEPOSIT") {
     paymentStatus = PAYMENT_STATUS.DEPOSIT_PAID;
     newTotalPaid = deposit;
   }
-  // 🔥 FINAL PAYMENT (IMPORTANT FIX)
-  else if (booking.payment_status === PAYMENT_STATUS.DEPOSIT_PAID) {
+  else if (normalizedPaymentType === "FINAL") {
     paymentStatus = PAYMENT_STATUS.PAID;
     const cleanPaidAmount = paidAmount - FPX_FEE;
-    newTotalPaid = (booking.total_paid || 0) + cleanPaidAmount;
+    newTotalPaid = Number(booking.total_paid || 0) + cleanPaidAmount;
   }
-  // 🟢 WALK-IN (FULL PAYMENT DIRECT)
-  else if (booking.booking_type === "WALK_IN") {
+  else if (normalizedPaymentType === "FULL") {
     paymentStatus = PAYMENT_STATUS.PAID;
     newTotalPaid = booking.total || 0;
   }
@@ -258,11 +309,46 @@ await bookingRepo.updatePaymentAndFinance(
     newTotalPaid,
     netAmount,
   });
+
+  try {
+    const packageData = await bookingRepo.getPackageById(booking.package_id);
+    const paymentDate = new Intl.DateTimeFormat("en-MY", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Asia/Kuala_Lumpur",
+    }).format(new Date());
+
+    await sendPaymentReceipt({
+      to_email: booking.email_addr,
+      customer_name: `${booking.first_name} ${booking.last_name || ""}`.trim(),
+      booking_ref: booking.booking_ref,
+      package_name: packageData?.name || "QashCamp Package",
+      start_date: booking.start_date,
+      end_date: booking.end_date,
+      payment_date: paymentDate,
+      payment_status: paymentStatus,
+      amount_paid: paidAmount.toFixed(2),
+      payment_message:
+        normalizedPaymentType === "DEPOSIT"
+          ? "Your deposit has been received and your booking is secured."
+          : "Your booking has been paid in full.",
+      year: new Date().getFullYear(),
+    });
+
+    console.log("✅ PAYMENT RECEIPT SENT:", booking.booking_ref);
+  } catch (emailError) {
+    console.error("❌ Payment was recorded, but receipt email failed:", emailError.message);
+  }
 }
 
 //redirect method
 async function getBookingStatus(id) {
-  return await bookingRepo.getBookingById(id);
+  const booking = await bookingRepo.getBookingById(id);
+  if (booking?.billplz_id && [PAYMENT_STATUS.UNPAID, PAYMENT_STATUS.DEPOSIT_PAID].includes(booking.payment_status)) {
+    await handleBillplzCallback({ billplzId: booking.billplz_id });
+    return bookingRepo.getBookingById(id);
+  }
+  return booking;
 }
 
 async function getLatestBookings() {
@@ -365,7 +451,7 @@ async function createFinalPayment({
     amount: Math.round(billAmount * 100),
     bookingId: booking.id,
     bookingRef: booking.booking_ref,
-    packageId: booking.package_id
+    paymentType: "FINAL"
   });
 
   const billplzId = billUrl.split("/").pop();
@@ -514,7 +600,7 @@ async function createBookingAndPaymentLiveTest(bookingData) {
     amount: billAmount * 100,
     bookingId: booking.id,
     bookingRef: booking.booking_ref,
-    packageId: booking.package_id
+    paymentType: isWalkIn ? "FULL" : "DEPOSIT"
   });
 
   const billplzId = billUrl.split("/").pop();

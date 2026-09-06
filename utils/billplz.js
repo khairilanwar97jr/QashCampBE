@@ -25,8 +25,8 @@ async function createBill(data) {
         reference_1_label: "Booking ID",
         reference_1: data.bookingId,
 
-        reference_2_label: "Package ID",
-        reference_2: data.packageId
+        reference_2_label: "Payment Type",
+        reference_2: data.paymentType
       },
       {
         auth: {
@@ -45,4 +45,12 @@ async function createBill(data) {
   }
 }
 
-module.exports = { createBill };
+async function getBill(id) {
+  const response = await axios.get(`${config.apiUrl}/${encodeURIComponent(id)}`, {
+    auth: { username: config.apiKey, password: "" },
+    timeout: 10000,
+  });
+  return response.data;
+}
+
+module.exports = { createBill, getBill };
