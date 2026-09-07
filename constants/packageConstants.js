@@ -6,6 +6,7 @@ const PACKAGE_NAMES = Object.freeze({
   EMBUN: "Embun",
   AURORA: "Aurora",
   RIMBAYU: "Rimbayu",
+  GELORA: "Gelora",
   VOUCHER: "Voucher"
 });
 
