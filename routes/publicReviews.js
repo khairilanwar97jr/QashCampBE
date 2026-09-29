@@ -3,7 +3,7 @@ const service = require('../services/reviewService');
 
 router.get('/', async (req, res) => {
   try {
-    const result = await service.listPublicReviews(req.query);
+    const result = await service.listPublicReviews();
     // Short public cache allows repeat visits/CDN hits without querying Supabase.
     res.set('Cache-Control', 'public, max-age=30, s-maxage=60');
     res.json({ success: true, ...result });

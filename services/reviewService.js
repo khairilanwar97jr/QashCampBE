@@ -99,25 +99,24 @@ async function submitByRef(reference, body, files) {
   return submit(await resolveReference(reference), body, files, reference);
 }
 
-async function listPublicReviews(query = {}) {
-  const rawLimit = query.limit === undefined ? '10' : query.limit;
-  if (typeof rawLimit !== 'string' || !/^(?:[1-9]|10)$/.test(rawLimit)) {
-    throw fail(400, 'Limit must be between 1 and 10');
-  }
-  if (query.before !== undefined) {
-    if (typeof query.before !== 'string') throw fail(400, 'Invalid pagination cursor');
-    validateId(query.before);
-  }
-  const result = await repo.listPublicReviews(Number(rawLimit), query.before);
+async function listPublicReviews() {
+  const result = await repo.listPublicReviews();
   const reviews = result.reviews.map(review => {
     const presented = storage.presentReview(review);
+    const booking = review.booking;
+    const name = [booking?.first_name, booking?.last_name]
+      .map(part => part?.trim()).filter(Boolean).join(' ') || null;
     return {
       id: presented.id, rating: presented.rating, feedback: presented.feedback,
+      name,
+      package_name: booking?.package?.name ?? null,
+      camp_place: booking?.camp_place ?? null,
+      camping_date: booking?.createddate ?? null,
       created_at: presented.created_at,
       photos: presented.photos.map(photo => ({ id: photo.id, photo_url: photo.photo_url })),
     };
   });
-  return { reviews, hasMore: result.hasMore, nextCursor: result.hasMore ? String(reviews.at(-1).id) : null };
+  return { reviews };
 }
 
 module.exports = { getStatus, submit, assertAvailable, deleteReview, getStatusByRef, assertAvailableByRef, submitByRef, listPublicReviews };

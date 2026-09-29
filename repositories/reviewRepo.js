@@ -60,25 +60,24 @@ async function deleteReview(id, token) {
   await rpc('delete_booking_review', { p_booking_id: id, p_token: token });
 }
 
-async function listPublicReviews(limit, before) {
-  let query = supabase.from('reviews')
-    .select('id, rating, feedback, created_at')
-    .order('id', { ascending: false }).limit(limit + 1);
-  if (before) query = query.lt('id', before);
-  const { data, error } = await query;
-  if (error) throw error;
-  const hasMore = data.length > limit;
-  const reviews = data.slice(0, limit);
-  if (!reviews.length) return { reviews: [], hasMore: false };
-  // Fetch photos only for the visible page, not the extra pagination marker.
-  const photos = await supabase.from('review_photos')
-    .select('id, review_id, photo_url').in('review_id', reviews.map(review => review.id))
-    .order('id', { ascending: true });
-  if (photos.error) throw photos.error;
-  return {
-    reviews: reviews.map(review => ({ ...review, photos: photos.data.filter(photo => String(photo.review_id) === String(review.id)) })),
-    hasMore,
-  };
+async function listPublicReviews() {
+  const reviews = [];
+  let before;
+  // Read in internal batches so the database response cap cannot truncate the slider.
+  // The frontend receives all matching reviews in a single response.
+  while (true) {
+    let query = supabase.from('reviews')
+      .select('id, rating, feedback, created_at, booking:user_booking!booking_id(first_name, last_name, camp_place, createddate, package:package!package_id(name)), photos:review_photos(id, photo_url)')
+      .gte('rating', 3)
+      .order('id', { ascending: false }).limit(500);
+    if (before !== undefined) query = query.lt('id', before);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data.length) break;
+    reviews.push(...data);
+    before = data.at(-1).id;
+  }
+  return { reviews };
 }
 
 module.exports = { getBooking, getBookingByRef, getReview, createReview, withSubmissionLock, deleteReview, listPublicReviews };
