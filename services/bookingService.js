@@ -25,7 +25,8 @@ if (!pkgDataForDepo) {
 // Business rules
 if (
   pkgDataForDepo.name === PACKAGE_NAMES.RIMBAYU ||
-  pkgDataForDepo.name === PACKAGE_NAMES.GELORA
+  pkgDataForDepo.name === PACKAGE_NAMES.GELORA ||
+  pkgDataForDepo.name === PACKAGE_NAMES.BELANTARA
 ) {
   depositAmount = 100;
 } else if (pkgDataForDepo.name === PACKAGE_NAMES.VOUCHER) {
